@@ -12,7 +12,7 @@ export default function Home() {
     if (status === "loading") return; // Wait for session to load
 
     if (status === "unauthenticated") {
-      router.replace("/login");
+      router.replace("https://auth-project-virid.vercel.app/login");
       return;
     }
 
@@ -20,12 +20,12 @@ export default function Home() {
       const role = session?.user?.role?.toLowerCase();
 
       const roleRoutes = {
-        manager: "/manager/dashboard",
-        accountant: "/accountant/dashboard",
-        user: "/user/dashboard",
+        manager: "https://auth-project-virid.vercel.app/manager/dashboard",
+        accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
+        user: "https://auth-project-virid.vercel.app/user/dashboard",
       };
 
-      const destination = roleRoutes[role] || "/login";
+      const destination = roleRoutes[role] || "https://auth-project-virid.vercel.app/login";
       router.replace(destination);
     }
   }, [status, session, router]);

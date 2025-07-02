@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
 import "../assets/css/style.css";
 import "../assets/css/user.css";
 
@@ -11,11 +12,12 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+
   const router = useRouter();
   const { data: session, status } = useSession();
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setError("");
     setSuccess("");
   };
@@ -45,10 +47,10 @@ export default function LoginForm() {
 
       if (res?.ok) {
         setSuccess("Login successful! Redirecting...");
-        // Let useSession() pick up the session update
+        // Let useSession() handle the redirect in useEffect
       } else {
         setError(res?.error || "Invalid credentials or role.");
-        setFormData(prev => ({ ...prev, password: "" }));
+        setFormData((prev) => ({ ...prev, password: "" }));
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -58,24 +60,24 @@ export default function LoginForm() {
     }
   };
 
-  // ✅ Redirect once session becomes available
+  // Redirect authenticated users to the correct dashboard
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role) {
       const role = session.user.role.toLowerCase();
       const redirectMap = {
-        user: "/user/dashboard",
-        manager: "/manager/dashboard",
-        accountant: "/accountant/dashboard",
+        user: "https://auth-project-virid.vercel.app/user/dashboard",
+        manager: "https://auth-project-virid.vercel.app/manager/dashboard",
+        accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
       };
       const redirectUrl = redirectMap[role] || "/";
       router.push(redirectUrl);
     }
-    console.log("Session updated:", session);
   }, [session, status, router]);
 
   return (
     <div className="login-container">
       <h2>Login</h2>
+
       <form onSubmit={handleSubmit} noValidate>
         <label htmlFor="email">Email</label>
         <input
@@ -120,6 +122,10 @@ export default function LoginForm() {
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>
+
+      <div className="login-link">
+        Don&apos;t have an account? <a href="/register">Register here</a>
+      </div>
     </div>
   );
 }

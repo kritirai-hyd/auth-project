@@ -9,7 +9,7 @@ import "../assets/css/style.css";
 import "../assets/css/user.css";
 
 export default function ManagerPage() {
-  const { data: session, status } = useSession(); // ✅ FIXED
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   const [orders, setOrders] = useState([]);
@@ -17,27 +17,27 @@ export default function ManagerPage() {
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Redirect based on authentication status and role
+  // 🔒 Redirect if not authenticated or not manager
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      router.push("https://auth-project-virid.vercel.app/login");
       return;
     }
 
     if (status === "authenticated") {
       const role = session?.user?.role?.toLowerCase();
-
       if (role !== "manager") {
         const redirectMap = {
           accountant: "/accountant/dashboard",
           user: "/user/dashboard",
         };
-        router.push(redirectMap[role] || "/login");
+        const redirectTo = redirectMap[role] || "/login";
+        router.push(`https://auth-project-virid.vercel.app${redirectTo}`);
       }
     }
   }, [status, session, router]);
 
-  // Fetch orders only if authenticated manager
+  // 📦 Fetch orders for managers only
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role?.toLowerCase() === "manager") {
       fetchOrders();
@@ -45,15 +45,15 @@ export default function ManagerPage() {
   }, [status, session]);
 
   const fetchOrders = async () => {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      const res = await fetch("/api/orders?page=1&limit=10");
+      const res = await fetch("https://auth-project-virid.vercel.app/api/orders?page=1&limit=10");
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.message || "Failed to load orders");
 
-      setOrders(data.orders);
-      setError("");
+      setOrders(Array.isArray(data.orders) ? data.orders : []);
     } catch (err) {
       setError(err.message || "Error fetching orders");
     } finally {
@@ -65,9 +65,9 @@ export default function ManagerPage() {
     const confirmed = confirm(`Are you sure you want to ${newStatus} this order?`);
     if (!confirmed) return;
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await fetch(`/api/orders?id=${id}`, {
+      const res = await fetch(`https://auth-project-virid.vercel.app/api/orders?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -123,7 +123,7 @@ export default function ManagerPage() {
         ) : orders.length === 0 ? (
           <p style={{ textAlign: "center" }}>No pending orders.</p>
         ) : (
-          orders.map(order => (
+          orders.map((order) => (
             <div key={order._id} className="card" style={{ marginBottom: "1rem" }}>
               <h3>{order.name}</h3>
               <p>{order.description}</p>
