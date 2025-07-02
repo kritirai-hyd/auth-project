@@ -1,12 +1,8 @@
-"use client";
-
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import "../assets/css/style.css";
 import "../assets/css/user.css";
-
 export default function LoginForm() {
   const [formData, setFormData] = useState({ email: "", password: "", role: "" });
   const [error, setError] = useState("");
@@ -20,49 +16,54 @@ export default function LoginForm() {
     setSuccess("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { email, password, role } = formData;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const { email, password, role } = formData;
 
-    if (!email || !password || !role) {
-      setError("All fields are required.");
-      return;
+  if (!email || !password || !role) {
+    setError("All fields are required.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+  setSuccess("");
+
+  try {
+    const normalizedRole = role.toLowerCase();
+
+    const res = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+      role: normalizedRole,
+    });
+
+    if (res?.ok) {
+      setSuccess("Login successful! Redirecting...");
+
+      const redirectMap = {
+        user: "/user/dashboard",
+        manager: "/manager/dashboard",
+        accountant: "/accountant/dashboard",
+      };
+
+      const redirectUrl = redirectMap[normalizedRole] || "/";
+
+      setTimeout(() => {
+        router.push(redirectUrl);
+      }, 1000);
+    } else {
+      setError(res?.error || "Invalid credentials or role.");
+      setFormData(prev => ({ ...prev, password: "" }));
     }
-
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const res = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-        role: role.toLowerCase(),
-      });
-
-      if (res?.ok) {
-        setSuccess("Login successful! Redirecting...");
-        // Redirect based on role
-        const redirectMap = {
-          user: "/user/dashboard",
-          manager: "/manager/dashboard",
-          accountant: "/accountant/dashboard",
-        };
-        setTimeout(() => {
-          router.push(redirectMap[role.toLowerCase()] || "/");
-        }, 1000);
-      } else {
-        setError(res?.error || "Login failed. Check your credentials.");
-        setFormData(prev => ({ ...prev, password: "" }));
-      }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-      console.error("Login error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError("Unexpected error occurred. Please try again.");
+    console.error("Login error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="login-container">
@@ -113,10 +114,6 @@ export default function LoginForm() {
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>
-
-      <p style={{ marginTop: "1rem" }}>
-        Don't have an account? <Link href="/register">Register here</Link>
-      </p>
     </div>
   );
 }

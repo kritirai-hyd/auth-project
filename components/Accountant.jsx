@@ -14,19 +14,24 @@ export default function AccountantDashboard() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Redirect based on role
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated") {
-      const role = session?.user.role?.toLowerCase();
-      if (role === "manager") {
-        router.push("/manager/dashboard");
-      } else if (role !== "accountant") {
-        router.push("/user/dashboard");
-      }
+useEffect(() => {
+  if (status === "unauthenticated") {
+    router.push("/login");
+  } else if (status === "authenticated") {
+    const role = session?.user?.role?.toLowerCase();
+
+    if (role === "manager") {
+      router.push("/manager/dashboard");
+    } else if (role === "accountant") {
+      router.push("/accountant/dashboard");
+    } else if (role === "user") {
+      router.push("/user/dashboard");
+    } else {
+      router.push("/login"); // fallback or unknown role
     }
-  }, [status, session, router]);
+  }
+}, [status, session, router]);
+
 
   // Fetch only approved orders
   const fetchApprovedOrders = async () => {

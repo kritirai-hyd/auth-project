@@ -9,13 +9,35 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Avoid redirecting while session is loading
+    if (status === "loading") return; // Wait for session to load
 
-    if (status === "authenticated" && session?.user?.role) {
-      const role = session.user.role.toLowerCase();
-      router.replace(role === "manager" ? "/manager" : "/user");
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+
+    if (status === "authenticated") {
+      const role = session?.user?.role?.toLowerCase();
+
+      const roleRoutes = {
+        manager: "/manager/dashboard",
+        accountant: "/accountant/dashboard",
+        user: "/user/dashboard",
+      };
+
+      const destination = roleRoutes[role] || "/login";
+      router.replace(destination);
     }
   }, [status, session, router]);
 
-  return null; // This component only handles redirect logic
+  // Optional loading screen to improve UX
+  if (status === "loading") {
+    return (
+      <div style={{ textAlign: "center", paddingTop: "3rem" }}>
+        <p>Redirecting to your dashboard...</p>
+      </div>
+    );
+  }
+
+  return null; // This component only handles routing logic
 }
