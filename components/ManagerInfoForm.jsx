@@ -17,6 +17,8 @@ export default function ManagerPage() {
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
+
+
   // 🔒 Redirect if not authenticated or not manager
   useEffect(() => {
     if (status === "unauthenticated") {

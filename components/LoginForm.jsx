@@ -61,18 +61,17 @@ export default function LoginForm() {
   };
 
   // Redirect authenticated users to the correct dashboard
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role) {
-      const role = session.user.role.toLowerCase();
-      const redirectMap = {
-        user: "https://auth-project-virid.vercel.app/user/dashboard",
-        manager: "https://auth-project-virid.vercel.app/manager/dashboard",
-        accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
-      };
-      const redirectUrl = redirectMap[role] || "/";
-      router.push(redirectUrl);
-    }
-  }, [session, status, router]);
+useEffect(() => {
+  if (status === "authenticated" && session?.user?.role) {
+    const role = session.user.role.toLowerCase();
+    const redirectMap = {
+      user: "https://auth-project-virid.vercel.app/user/dashboard",
+      manager: "https://auth-project-virid.vercel.app/manager/dashboard",
+      accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
+    };
+    router.push(redirectMap[role] || "/");
+  }
+}, [session, status]);
 
   return (
     <div className="login-container">
