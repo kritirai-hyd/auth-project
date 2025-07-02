@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import "../assets/css/style.css";
 import "../assets/css/user.css";
+
 export default function LoginForm() {
   const [formData, setFormData] = useState({ email: "", password: "", role: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -16,54 +20,58 @@ export default function LoginForm() {
     setSuccess("");
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  const { email, password, role } = formData;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const { email, password, role } = formData;
 
-  if (!email || !password || !role) {
-    setError("All fields are required.");
-    return;
-  }
+    if (!email || !password || !role) {
+      setError("All fields are required.");
+      return;
+    }
 
-  setLoading(true);
-  setError("");
-  setSuccess("");
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
-  try {
-    const normalizedRole = role.toLowerCase();
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        role: role.toLowerCase(),
+      });
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-      role: normalizedRole,
-    });
+      console.log("signIn response:", res);
 
-    if (res?.ok) {
-      setSuccess("Login successful! Redirecting...");
+      if (res?.ok) {
+        setSuccess("Login successful! Redirecting...");
+        // Let useSession() pick up the session update
+      } else {
+        setError(res?.error || "Invalid credentials or role.");
+        setFormData(prev => ({ ...prev, password: "" }));
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // ✅ Redirect once session becomes available
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role) {
+      const role = session.user.role.toLowerCase();
       const redirectMap = {
         user: "/user/dashboard",
         manager: "/manager/dashboard",
         accountant: "/accountant/dashboard",
       };
-
-      const redirectUrl = redirectMap[normalizedRole] || "/";
-
-      setTimeout(() => {
-        router.push(redirectUrl);
-      }, 1000);
-    } else {
-      setError(res?.error || "Invalid credentials or role.");
-      setFormData(prev => ({ ...prev, password: "" }));
+      const redirectUrl = redirectMap[role] || "/";
+      router.push(redirectUrl);
     }
-  } catch (err) {
-    setError("Unexpected error occurred. Please try again.");
-    console.error("Login error:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+    console.log("Session updated:", session);
+  }, [session, status, router]);
 
   return (
     <div className="login-container">
@@ -78,7 +86,6 @@ const handleSubmit = async (e) => {
           value={formData.email}
           onChange={handleChange}
           required
-          autoComplete="email"
         />
 
         <label htmlFor="password">Password</label>
@@ -90,7 +97,6 @@ const handleSubmit = async (e) => {
           value={formData.password}
           onChange={handleChange}
           required
-          autoComplete="current-password"
         />
 
         <label htmlFor="role">Role</label>

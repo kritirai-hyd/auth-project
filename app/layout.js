@@ -1,7 +1,6 @@
-// app/layout.js
 import "./globals.css";
 import { Inter } from "next/font/google";
-import { AuthProvider } from "./Providers";
+import { AuthProvider } from "./Providers"; // ✅ Your custom wrapper
 
 const inter = Inter({ subsets: ["latin"] });
 

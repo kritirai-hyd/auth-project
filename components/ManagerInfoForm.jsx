@@ -9,7 +9,7 @@ import "../assets/css/style.css";
 import "../assets/css/user.css";
 
 export default function ManagerPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession(); // ✅ FIXED
   const router = useRouter();
 
   const [orders, setOrders] = useState([]);
@@ -34,7 +34,6 @@ export default function ManagerPage() {
         };
         router.push(redirectMap[role] || "/login");
       }
-      // If manager, remain here and fetch orders
     }
   }, [status, session, router]);
 
@@ -77,8 +76,7 @@ export default function ManagerPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      // Refresh orders after update
-      await fetchOrders();
+      await fetchOrders(); // refresh orders
     } catch (err) {
       setError(err.message || "Error updating order status");
     } finally {
