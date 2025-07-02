@@ -16,12 +16,14 @@ export default function LoginForm() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
+  // Handle input changes
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setError("");
     setSuccess("");
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { email, password, role } = formData;
@@ -36,6 +38,7 @@ export default function LoginForm() {
     setSuccess("");
 
     try {
+      // Call next-auth signIn with credentials provider
       const res = await signIn("credentials", {
         redirect: false,
         email,
@@ -43,11 +46,9 @@ export default function LoginForm() {
         role: role.toLowerCase(),
       });
 
-      console.log("signIn response:", res);
-
       if (res?.ok) {
         setSuccess("Login successful! Redirecting...");
-        // Let useSession() handle the redirect in useEffect
+        // Redirect is handled in useEffect when session updates
       } else {
         setError(res?.error || "Invalid credentials or role.");
         setFormData((prev) => ({ ...prev, password: "" }));
@@ -60,21 +61,21 @@ export default function LoginForm() {
     }
   };
 
-  // Redirect authenticated users to the correct dashboard
-useEffect(() => {
-  if (status === "authenticated" && session?.user?.role) {
-    const role = session.user.role.toLowerCase();
-    const redirectMap = {
-      user: "https://auth-project-virid.vercel.app/user/dashboard",
-      manager: "https://auth-project-virid.vercel.app/manager/dashboard",
-      accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
-    };
-    router.push(redirectMap[role] || "/");
-  }
-}, [session, status]);
+  // Redirect authenticated users based on role
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role) {
+      const role = session.user.role.toLowerCase();
+      const redirectMap = {
+        user: "/user/dashboard",
+        manager: "/manager/dashboard",
+        accountant: "/accountant/dashboard",
+      };
+      router.push(redirectMap[role] || "/");
+    }
+  }, [session, status, router]);
 
   return (
-    <div className="login-container">
+    <div className="login-container" role="main">
       <h2>Login</h2>
 
       <form onSubmit={handleSubmit} noValidate>
@@ -87,6 +88,8 @@ useEffect(() => {
           value={formData.email}
           onChange={handleChange}
           required
+          autoComplete="email"
+          aria-describedby="emailHelp"
         />
 
         <label htmlFor="password">Password</label>
@@ -98,6 +101,7 @@ useEffect(() => {
           value={formData.password}
           onChange={handleChange}
           required
+          autoComplete="current-password"
         />
 
         <label htmlFor="role">Role</label>
@@ -107,6 +111,7 @@ useEffect(() => {
           value={formData.role}
           onChange={handleChange}
           required
+          aria-required="true"
         >
           <option value="">-- Select Role --</option>
           <option value="user">User</option>
@@ -114,15 +119,32 @@ useEffect(() => {
           <option value="accountant">Accountant</option>
         </select>
 
-        {error && <p style={{ color: "red", marginTop: "0.5rem" }}>{error}</p>}
-        {success && <p style={{ color: "green", marginTop: "0.5rem" }}>{success}</p>}
+        {error && (
+          <p
+            style={{ color: "red", marginTop: "0.5rem" }}
+            role="alert"
+            aria-live="assertive"
+          >
+            {error}
+          </p>
+        )}
+
+        {success && (
+          <p
+            style={{ color: "green", marginTop: "0.5rem" }}
+            role="status"
+            aria-live="polite"
+          >
+            {success}
+          </p>
+        )}
 
         <button type="submit" disabled={loading} style={{ marginTop: "1rem" }}>
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>
 
-      <div className="login-link">
+      <div className="login-link" style={{ marginTop: "1rem" }}>
         Don&apos;t have an account? <a href="/register">Register here</a>
       </div>
     </div>

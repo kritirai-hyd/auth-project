@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import Link from "next/link";
+
 import "../assets/css/style.css";
 import "../assets/css/user.css";
 
@@ -30,7 +32,12 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { name, email, phone, password, role } = formData;
+    const name = formData.name.trim();
+    const email = formData.email.trim();
+    const phone = formData.phone.trim();
+    const password = formData.password;
+    const role = formData.role;
+
     if (!name || !email || !phone || !password || !role) {
       setMessage({ text: "Please fill in all fields.", type: "error" });
       return;
@@ -48,11 +55,11 @@ export default function Register() {
 
     try {
       setLoading(true);
-      const res = await axios.post("https://auth-project-virid.vercel.app/api/register", formData);
+      const res = await axios.post("/api/register", { name, email, phone, password, role });
       setMessage({ text: "Registration successful! Redirecting to login...", type: "success" });
 
       setTimeout(() => {
-        router.push("https://auth-project-virid.vercel.app/login");
+        router.push("/login");
       }, 1500);
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Registration failed. Please try again.";
@@ -65,14 +72,17 @@ export default function Register() {
   return (
     <div className="register-container">
       <h2>Register</h2>
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate disabled={loading}>
         <label htmlFor="name">Name</label>
         <input
+          type="text"
           name="name"
           id="name"
           value={formData.name}
           onChange={handleChange}
+          autoComplete="name"
           required
+          disabled={loading}
         />
 
         <label htmlFor="email">Email</label>
@@ -82,7 +92,9 @@ export default function Register() {
           id="email"
           value={formData.email}
           onChange={handleChange}
+          autoComplete="email"
           required
+          disabled={loading}
         />
 
         <label htmlFor="phone">Phone</label>
@@ -93,7 +105,9 @@ export default function Register() {
           value={formData.phone}
           onChange={handleChange}
           pattern="[0-9]{10}"
+          autoComplete="tel"
           required
+          disabled={loading}
         />
 
         <label htmlFor="password">Password</label>
@@ -104,7 +118,9 @@ export default function Register() {
           value={formData.password}
           onChange={handleChange}
           minLength={6}
+          autoComplete="new-password"
           required
+          disabled={loading}
         />
 
         <label htmlFor="role">Role</label>
@@ -114,6 +130,7 @@ export default function Register() {
           value={formData.role}
           onChange={handleChange}
           required
+          disabled={loading}
         >
           <option value="">-- Select Role --</option>
           <option value="user">User</option>
@@ -122,7 +139,10 @@ export default function Register() {
         </select>
 
         {message.text && (
-          <p style={{ color: message.type === "error" ? "red" : "green", marginTop: "0.5rem" }}>
+          <p
+            role={message.type === "error" ? "alert" : "status"}
+            style={{ color: message.type === "error" ? "red" : "green", marginTop: "0.5rem" }}
+          >
             {message.text}
           </p>
         )}
@@ -133,8 +153,7 @@ export default function Register() {
       </form>
 
       <div className="login-link" style={{ marginTop: "1rem" }}>
-        Already have an account?{" "}
-        <a href="https://auth-project-virid.vercel.app/login">Login here</a>
+        Already have an account? <Link href="/login">Login here</Link>
       </div>
     </div>
   );

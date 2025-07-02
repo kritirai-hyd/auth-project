@@ -16,13 +16,12 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track order updating status
 
-
-
-  // 🔒 Redirect if not authenticated or not manager
+  // Redirect if not authenticated or not manager
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("https://auth-project-virid.vercel.app/login");
+      router.push("/login");
       return;
     }
 
@@ -33,13 +32,12 @@ export default function ManagerPage() {
           accountant: "/accountant/dashboard",
           user: "/user/dashboard",
         };
-        const redirectTo = redirectMap[role] || "/login";
-        router.push(`https://auth-project-virid.vercel.app${redirectTo}`);
+        router.push(redirectMap[role] || "/login");
       }
     }
   }, [status, session, router]);
 
-  // 📦 Fetch orders for managers only
+  // Fetch orders when authenticated as manager
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role?.toLowerCase() === "manager") {
       fetchOrders();
@@ -50,7 +48,7 @@ export default function ManagerPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("https://auth-project-virid.vercel.app/api/orders?page=1&limit=10");
+      const res = await fetch("/api/orders?page=1&limit=10");
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.message || "Failed to load orders");
@@ -67,9 +65,11 @@ export default function ManagerPage() {
     const confirmed = confirm(`Are you sure you want to ${newStatus} this order?`);
     if (!confirmed) return;
 
-    setLoading(true);
+    setUpdatingOrderId(id);
+    setError("");
+
     try {
-      const res = await fetch(`https://auth-project-virid.vercel.app/api/orders?id=${id}`, {
+      const res = await fetch(`/api/orders?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -78,11 +78,11 @@ export default function ManagerPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      await fetchOrders(); // refresh orders
+      await fetchOrders(); // refresh orders after update
     } catch (err) {
       setError(err.message || "Error updating order status");
     } finally {
-      setLoading(false);
+      setUpdatingOrderId(null);
     }
   };
 
@@ -96,19 +96,25 @@ export default function ManagerPage() {
 
   return (
     <>
-      <nav className="navbar">
+      <nav className="navbar" role="navigation" aria-label="Main navigation">
         <div className="logo">Manager Dashboard</div>
         <div className="nav">
-          <div className="toggle" onClick={() => setMenuOpen(!menuOpen)}>☰</div>
-          <div className={`menu ${menuOpen ? "active" : ""}`}>
+          <button
+            className="toggle"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-expanded={menuOpen}
+            aria-controls="menu"
+            aria-label="Toggle menu"
+          >
+            ☰
+          </button>
+          <div id="menu" className={`menu ${menuOpen ? "active" : ""}`}>
             <Link href="/manager/dashboard">Manager</Link>
             <Link href="/accountant/dashboard">Accountant</Link>
-            <p>👤 <strong>{session.user.name}</strong></p>
-            <button
-              className="btn-delete"
-              onClick={() => signOut()}
-              disabled={loading}
-            >
+            <p>
+              👤 <strong>{session.user.name}</strong>
+            </p>
+            <button className="btn-delete" onClick={() => signOut()} disabled={loading}>
               Log Out
             </button>
           </div>
@@ -118,7 +124,7 @@ export default function ManagerPage() {
       <h1 style={{ textAlign: "center", padding: "2rem 0" }}>Pending Orders</h1>
 
       <main className="products-container" style={{ padding: "2rem" }}>
-        {error && <p className="error-message">{error}</p>}
+        {error && <p className="error-message" role="alert">{error}</p>}
 
         {loading ? (
           <p className="loading-message">Loading orders...</p>
@@ -129,13 +135,20 @@ export default function ManagerPage() {
             <div key={order._id} className="card" style={{ marginBottom: "1rem" }}>
               <h3>{order.name}</h3>
               <p>{order.description}</p>
-              <p>Price: ₹{order.price} × Qty: {order.quantity}</p>
-              <p>Requested by: <strong>{order.username}</strong></p>
-              <p>Status: <strong>{order.status}</strong></p>
+              <p>
+                Price: ₹{order.price} × Qty: {order.quantity}
+              </p>
+              <p>
+                Requested by: <strong>{order.username}</strong>
+              </p>
+              <p>
+                Status: <strong>{order.status}</strong>
+              </p>
 
               {order.status === "approved" && order.approved_by?.name && (
                 <p>
-                  ✅ Approved by: <strong>{order.approved_by.name}</strong><br />
+                  ✅ Approved by: <strong>{order.approved_by.name}</strong>
+                  <br />
                   at: {order.approved_at ? new Date(order.approved_at).toLocaleString() : "N/A"}
                 </p>
               )}
@@ -145,14 +158,14 @@ export default function ManagerPage() {
                   <button
                     onClick={() => handleStatusUpdate(order._id, "approved")}
                     className="btn-approve"
-                    disabled={loading}
+                    disabled={updatingOrderId === order._id}
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleStatusUpdate(order._id, "rejected")}
                     className="btn-reject"
-                    disabled={loading}
+                    disabled={updatingOrderId === order._id}
                   >
                     Reject
                   </button>

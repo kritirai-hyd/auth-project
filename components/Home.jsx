@@ -9,10 +9,10 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Wait for session to load
+    if (status === "loading") return; // Wait until session state is known
 
     if (status === "unauthenticated") {
-      router.replace("https://auth-project-virid.vercel.app/login");
+      router.replace("/login");
       return;
     }
 
@@ -20,17 +20,16 @@ export default function Home() {
       const role = session?.user?.role?.toLowerCase();
 
       const roleRoutes = {
-        manager: "https://auth-project-virid.vercel.app/manager/dashboard",
-        accountant: "https://auth-project-virid.vercel.app/accountant/dashboard",
-        user: "https://auth-project-virid.vercel.app/user/dashboard",
+        manager: "/manager/dashboard",
+        accountant: "/accountant/dashboard",
+        user: "/user/dashboard",
       };
 
-      const destination = roleRoutes[role] || "https://auth-project-virid.vercel.app/login";
+      const destination = roleRoutes[role] || "/login";
       router.replace(destination);
     }
   }, [status, session, router]);
 
-  // Optional loading screen to improve UX
   if (status === "loading") {
     return (
       <div style={{ textAlign: "center", paddingTop: "3rem" }}>
@@ -39,5 +38,6 @@ export default function Home() {
     );
   }
 
-  return null; // This component only handles routing logic
+  // No UI, just redirect logic
+  return null;
 }

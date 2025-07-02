@@ -17,29 +17,25 @@ export default function AccountantDashboard() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Handle session and role-based routing
+  const role = session?.user?.role?.toLowerCase();
+
+  // Redirect based on role or if unauthenticated
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("https://auth-project-virid.vercel.app/login");
-    } else if (status === "authenticated") {
-      const role = session?.user?.role?.toLowerCase();
-
-      if (role && role !== "accountant") {
-        const redirectMap = {
-          manager: "/manager/dashboard",
-          user: "/user/dashboard",
-        };
-        const redirectTo = redirectMap[role] || "/login";
-        router.push(`https://auth-project-virid.vercel.app${redirectTo}`);
-      }
+      router.push("/login");
+    } else if (status === "authenticated" && role !== "accountant") {
+      const redirectMap = {
+        manager: "/manager/dashboard",
+        user: "/user/dashboard",
+      };
+      router.push(redirectMap[role] || "/login");
     }
-  }, [status, session, router]);
+  }, [status, role, router]);
 
-  // Fetch only approved orders
+  // Fetch approved orders
   const fetchApprovedOrders = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch("/api/orders?page=1&limit=10");
       const json = await res.json();
@@ -48,28 +44,33 @@ export default function AccountantDashboard() {
 
       setOrders(Array.isArray(json.orders) ? json.orders : []);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  // Trigger order fetching after session is ready
+  // Fetch on load if authenticated
   useEffect(() => {
-    if (
-      status === "authenticated" &&
-      session?.user?.role?.toLowerCase() === "accountant"
-    ) {
+    if (status === "authenticated" && role === "accountant") {
       fetchApprovedOrders();
     }
-  }, [status, session]);
+  }, [status, role]);
 
-  // Loading state
+  const handleSignOut = async () => {
+    try {
+      await signOut({ callbackUrl: "/login" });
+    } catch (err) {
+      alert("Failed to sign out. Please try again.");
+    }
+  };
+
+  // Loading session
   if (status === "loading") return <p>Loading session...</p>;
 
-  // Access control
-  if (!session || session.user.role?.toLowerCase() !== "accountant") {
-    return <p>Access denied.</p>;
+  // Unauthorized
+  if (!session || role !== "accountant") {
+    return <p style={{ textAlign: "center" }}>Access denied.</p>;
   }
 
   return (
@@ -87,40 +88,30 @@ export default function AccountantDashboard() {
           </div>
 
           <div className={`menu ${menuOpen ? "active" : ""}`}>
-            <a href="https://auth-project-virid.vercel.app/manager/dashboard">
-              <span>Manager</span>
-            </a>
-            <a href="https://auth-project-virid.vercel.app/accountant/dashboard">
-              <span>Accountant</span>
-            </a>
-          </div>
+            <a href="/manager/dashboard"><span>Manager</span></a>
+            <a href="/accountant/dashboard"><span>Accountant</span></a>
 
-          <div className={`menu ${menuOpen ? "active" : ""}`}>
             <p>
-              👤 Name: <strong>{session.user.name}</strong>
+              👤 Name: <strong>{session?.user?.name || "N/A"}</strong>
             </p>
-          </div>
 
-          <button
-            onClick={() => signOut()}
-            className={`btn-delete ${menuOpen ? "active" : ""}`}
-            disabled={loading}
-          >
-            Log Out
-          </button>
+            <button
+              onClick={handleSignOut}
+              className="btn-delete"
+              disabled={loading}
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </nav>
 
       <h1 style={{ textAlign: "center", padding: "2rem" }}>Approved Orders</h1>
 
       <section className="products-container" style={{ padding: "1rem 2rem" }}>
-        {error && (
-          <p style={{ color: "red", textAlign: "center" }}>{error}</p>
-        )}
+        {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
 
-        {loading && (
-          <p style={{ textAlign: "center" }}>Loading approved orders...</p>
-        )}
+        {loading && <p style={{ textAlign: "center" }}>Loading approved orders...</p>}
 
         {!loading && orders.length === 0 && (
           <p style={{ textAlign: "center" }}>No approved orders found.</p>
@@ -156,11 +147,9 @@ export default function AccountantDashboard() {
                   {" " + item.status}
                 </strong>
               </p>
-
               {item.approved_by?.name && (
                 <p>
-                  Approved by: <strong>{item.approved_by.name}</strong>
-                  <br />
+                  Approved by: <strong>{item.approved_by.name}</strong><br />
                   at:{" "}
                   {item.approved_at &&
                     new Date(item.approved_at).toLocaleString()}
