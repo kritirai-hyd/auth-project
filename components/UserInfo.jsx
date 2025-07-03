@@ -161,7 +161,7 @@ export default function UserInfo() {
 
   if (!session)
     return (
-      <main className="user-container">
+      <main className="user-login-container">
         <p>Please log in to continue.</p>
         <Link href="/login"><div className="btn">Login</div></Link>
       </main>

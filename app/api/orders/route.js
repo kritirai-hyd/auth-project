@@ -6,12 +6,62 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-
 const getRole = (session) => session?.user?.role?.toLowerCase();
 const getUsername = (session) => session?.user?.name?.trim();
 const allowRoles = (session, roles) => roles.includes(getRole(session));
 
-/** GET: Fetch orders by role */
+
+const handleError = (label, err) => {
+  console.error(`${label} error:`, err.message);
+  console.error(err.stack);
+  return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+};
+
+// ✅ PATCH — Approve / Reject by Manager
+export async function PATCH(req) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role.toLowerCase() !== "manager") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectMongoDB();
+
+    const { searchParams } = new URL(req.url);
+    const orderId = searchParams.get("id");
+
+    if (!isValidObjectId(orderId)) {
+      return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
+    }
+
+    const { status: newStatus } = await req.json();
+
+    if (!["pending", "approved", "rejected"].includes(newStatus)) {
+      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        status: newStatus,
+        approved_by: newStatus === "approved" ? session.user.id : null,
+        approved_at: newStatus === "approved" ? new Date() : null,
+      },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ order: updatedOrder }, { status: 200 });
+  } catch (err) {
+    console.error("PATCH error:", err);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  }
+}
+
+// ================= GET: List Orders =================
 export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,12 +93,11 @@ export async function GET(req) {
       pagination: { total, page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error("GET error:", err);
-    return NextResponse.json({ message: "Failed to fetch orders" }, { status: 500 });
+    return handleError("GET", err);
   }
 }
 
-/** POST: Create a new order (user only) */
+// ================= POST: Create Order =================
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -57,11 +106,11 @@ export async function POST(req) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     await connectMongoDB();
-
-    const { username, name, description, price, quantity } = await req.json();
+    const body = await req.json();
+    const { username, name, description, price, quantity } = body;
 
     if (!username || !name || !description || price == null || quantity == null) {
-      return NextResponse.json({ message: "Missing fields" }, { status: 400 });
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
     const newOrder = await Order.create({
@@ -75,12 +124,11 @@ export async function POST(req) {
 
     return NextResponse.json({ order: newOrder }, { status: 201 });
   } catch (err) {
-    console.error("POST error:", err);
-    return NextResponse.json({ message: "Creation failed" }, { status: 500 });
+    return handleError("POST", err);
   }
 }
 
-/** PUT: Update an order (user only, own orders only) */
+// ================= PUT: Update Own Order =================
 export async function PUT(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -92,8 +140,7 @@ export async function PUT(req) {
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("id");
-    if (!isValidObjectId(orderId))
-      return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
+    if (!isValidObjectId(orderId)) return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
 
     const updates = await req.json();
     delete updates.status;
@@ -101,60 +148,21 @@ export async function PUT(req) {
     delete updates.approved_at;
 
     const order = await Order.findById(orderId);
-    if (!order) return NextResponse.json({ message: "Not found" }, { status: 404 });
+    if (!order) return NextResponse.json({ message: "Order not found" }, { status: 404 });
 
     if (order.username !== getUsername(session)) {
-      return NextResponse.json({ message: "Forbidden: not your order" }, { status: 403 });
+      return NextResponse.json({ message: "Forbidden: Not your order" }, { status: 403 });
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(orderId, updates, { new: true });
     return NextResponse.json({ order: updatedOrder });
   } catch (err) {
-    console.error("PUT error:", err);
-    return NextResponse.json({ message: "Update failed" }, { status: 500 });
+    return handleError("PUT", err);
   }
 }
 
-/** PATCH: Approve/Reject order (manager only) */
-export async function PATCH(req) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    if (!allowRoles(session, ["manager"]))
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-    await connectMongoDB();
-
-    const { searchParams } = new URL(req.url);
-    const orderId = searchParams.get("id");
-    if (!isValidObjectId(orderId))
-      return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
-
-    const { status: newStatus } = await req.json();
-    if (!["pending", "approved", "rejected"].includes(newStatus)) {
-      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
-    }
-
-    const updatedOrder = await Order.findByIdAndUpdate(
-      orderId,
-      {
-        status: newStatus,
-        approved_by: session.user.name,
-        approved_at: new Date(),
-      },
-      { new: true }
-    );
-
-    if (!updatedOrder) return NextResponse.json({ message: "Order not found" }, { status: 404 });
-
-    return NextResponse.json({ order: updatedOrder });
-  } catch (err) {
-    console.error("PATCH error:", err);
-    return NextResponse.json({ message: "Status update failed" }, { status: 500 });
-  }
-}
-
-/** DELETE: Delete order (user only, own orders) */
+// ================= DELETE: Delete Own Order =================
 export async function DELETE(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -166,20 +174,18 @@ export async function DELETE(req) {
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("id");
-    if (!isValidObjectId(orderId))
-      return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
+    if (!isValidObjectId(orderId)) return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
 
     const order = await Order.findById(orderId);
     if (!order) return NextResponse.json({ message: "Order not found" }, { status: 404 });
 
     if (order.username !== getUsername(session)) {
-      return NextResponse.json({ message: "Forbidden: not your order" }, { status: 403 });
+      return NextResponse.json({ message: "Forbidden: Not your order" }, { status: 403 });
     }
 
     await Order.findByIdAndDelete(orderId);
-    return NextResponse.json({ message: "Order deleted" });
+    return NextResponse.json({ message: "Order deleted successfully" });
   } catch (err) {
-    console.error("DELETE error:", err);
-    return NextResponse.json({ message: "Delete failed" }, { status: 500 });
+    return handleError("DELETE", err);
   }
 }

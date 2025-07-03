@@ -1,36 +1,37 @@
+// models/order.js
 import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, 'Username is required'],
+      required: true,
       trim: true,
       minlength: 3,
       maxlength: 30,
     },
     name: {
       type: String,
-      required: [true, 'Product name is required'],
+      required: true,
       trim: true,
       minlength: 3,
       maxlength: 50,
     },
     description: {
       type: String,
-      required: [true, 'Product description is required'],
+      required: true,
       trim: true,
       minlength: 6,
       maxlength: 200,
     },
     quantity: {
       type: Number,
-      required: [true, 'Product quantity is required'],
+      required: true,
       min: 1,
     },
     price: {
       type: Number,
-      required: [true, 'Product price is required'],
+      required: true,
       min: 0,
     },
     status: {
@@ -40,7 +41,7 @@ const OrderSchema = new mongoose.Schema(
     },
     approved_by: {
       type: mongoose.Schema.Types.ObjectId,
-       ref: 'Manager',
+      ref: 'Manager', // Assuming all users (including managers) are in a "User" collection
       default: null,
     },
     approved_at: {

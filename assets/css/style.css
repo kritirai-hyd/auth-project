@@ -341,3 +341,19 @@ form button:hover {
   text-align: center;
   margin-top: 1.5rem;
 }
+.user-login-container{
+flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 50vh;
+    display: flex
+;
+    background-color: #e4e4e4;
+    width: 50%;
+    margin:30vh auto;
+    padding: 5rem 0;
+    border-radius: 6px;
+    color: #6b0000;
+    font-weight: 700;
+    line-height: 2rem;
+}

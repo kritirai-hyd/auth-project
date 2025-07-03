@@ -16,16 +16,13 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track order updating status
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
-  // Redirect if not authenticated or not manager
+  // Redirect unauthorized or wrong role
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
-      return;
-    }
-
-    if (status === "authenticated") {
+    } else if (status === "authenticated") {
       const role = session?.user?.role?.toLowerCase();
       if (role !== "manager") {
         const redirectMap = {
@@ -37,7 +34,7 @@ export default function ManagerPage() {
     }
   }, [status, session, router]);
 
-  // Fetch orders when authenticated as manager
+  // Fetch orders for manager
   useEffect(() => {
     if (status === "authenticated" && session?.user?.role?.toLowerCase() === "manager") {
       fetchOrders();
@@ -50,11 +47,11 @@ export default function ManagerPage() {
     try {
       const res = await fetch("/api/orders?page=1&limit=10");
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.message || "Failed to load orders");
 
       setOrders(Array.isArray(data.orders) ? data.orders : []);
     } catch (err) {
+      console.error("Error fetching orders:", err);
       setError(err.message || "Error fetching orders");
     } finally {
       setLoading(false);
@@ -62,25 +59,38 @@ export default function ManagerPage() {
   };
 
   const handleStatusUpdate = async (id, newStatus) => {
-    const confirmed = confirm(`Are you sure you want to ${newStatus} this order?`);
+    if (!id || !newStatus) {
+      setError("Missing order ID or status");
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to ${newStatus.toUpperCase()} this order?`);
     if (!confirmed) return;
 
     setUpdatingOrderId(id);
     setError("");
 
     try {
-      const res = await fetch(`/api/orders?id=${id}`, {
+      const response = await fetch(`/api/orders?id=${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ status: newStatus }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Update failed");
+      const data = await response.json();
 
-      await fetchOrders(); // refresh orders after update
-    } catch (err) {
-      setError(err.message || "Error updating order status");
+      if (!response.ok) {
+        throw new Error(data.message || `Failed to update order status to ${newStatus}`);
+      }
+
+      await fetchOrders(); // Refresh list
+      // Optionally: toast.success(`Order ${newStatus} successfully`);
+    } catch (error) {
+      console.error("Status update error:", error);
+      setError(error.message || "Error updating order status");
+      // Optionally: toast.error(error.message);
     } finally {
       setUpdatingOrderId(null);
     }
